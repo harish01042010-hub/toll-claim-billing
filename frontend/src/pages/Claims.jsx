@@ -22,9 +22,9 @@ const Claims = () => {
     const fetchData = async () => {
         try {
             const [vehRes, routeRes, claimsRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/vehicles'),
-                axios.get('http://localhost:5000/api/routes'),
-                axios.get('http://localhost:5000/api/data/claims')
+                axios.get('https://toll-claim-billing-production.up.railway.app/api/vehicles'),
+axios.get('https://toll-claim-billing-production.up.railway.app/api/routes'),
+axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims')
             ]);
             setVehicles(vehRes.data);
             setRoutes(routeRes.data);
@@ -45,7 +45,7 @@ const Claims = () => {
         setLoading(true);
         setClaimData(null);
         try {
-            const { data } = await axios.post('http://localhost:5000/api/data/claims/generate', {
+            const { data } = await axios.post('https://toll-claim-billing-production.up.railway.app/api/data/claims/generate', {
                 vehicle_number: selectedVehicle,
                 route_id: selectedRoute,
                 start_date: startDate || null,
@@ -62,7 +62,7 @@ const Claims = () => {
     const handleSaveClaim = async () => {
         if (!claimData) return;
         try {
-            const { data } = await axios.post('http://localhost:5000/api/data/claims/save', {
+            const { data } = await axios.post('https://toll-claim-billing-production.up.railway.app/api/data/claims/save', {
                 vehicle_number: claimData.vehicle_number,
                 route_id: claimData.route_id,
                 total_paid: claimData.total_paid,
