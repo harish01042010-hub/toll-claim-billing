@@ -4,7 +4,7 @@ import { Route, Plus, Trash2, MapPin, Download, Upload } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = "https://toll-claim-billing.onrender.com";
 
 const RoutesManage = () => {
     const [routes, setRoutes] = useState([]);

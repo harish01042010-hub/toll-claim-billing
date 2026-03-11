@@ -4,7 +4,7 @@ import { Search, Printer, Download, Save, Files } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = "https://toll-claim-billing.onrender.com";
 
 const Claims = () => {
     const [vehicles, setVehicles] = useState([]);
@@ -406,8 +406,8 @@ const Claims = () => {
                                 </tfoot>
                             </table>
                         </div>
-                    </div>  </div>
-               
+                    </div>
+                </div>
             )}
 
             {/* Past Claims List (Hidden from Print) */}
