@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 
 // ✅ API is now correctly placed outside the import block
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = import.meta.env.VITE_API_URL || "https://toll-claim-billing.onrender.com";
 
 const StatCard = ({ icon: Icon, label, value, color }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4 transition-transform hover:-translate-y-1">
