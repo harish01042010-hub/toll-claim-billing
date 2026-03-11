@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/db');
 const multer = require('multer');
 const xlsx = require('xlsx');
+const pdfParse = require('pdf-parse');
+const fs = require('fs');
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -30,57 +32,116 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// Upload transactions (Excel/CSV)
+// Get Fastag Transactions for Preview
+router.get('/fastag-transactions', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT * FROM fastag_transactions 
+            ORDER BY created_at DESC, transaction_date DESC 
+            LIMIT 100
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Upload transactions (Excel/CSV/PDF)
 router.post('/upload', upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     try {
-        const workbook = xlsx.readFile(req.file.path);
-        const sheetName = workbook.SheetNames[0];
-        const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        let extractedRows = [];
+
+        if (req.file.originalname.toLowerCase().endsWith('.pdf')) {
+            const dataBuffer = fs.readFileSync(req.file.path);
+            const data = await pdfParse(dataBuffer);
+            const lines = data.text.split('\n');
+
+            for (const line of lines) {
+                // Heuristic regex to match: [Date] ... [Vehicle] ... [Amount]
+                // Examples: 27/03/2021 12:30:00 MH12AB1234 Some Toll Plaza 150
+                // Or: txn123 2021-03-27 TN52W3099 Paliyekkara Toll Plaza 410.0
+                const dateMatch = line.match(/(\d{2}[-/]\d{2}[-/]\d{2,4}(?:\s+\d{2}:\d{2}:\d{2})?)/);
+                const vehMatch = line.match(/\b([A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4})\b/);
+                const amtMatch = line.match(/\b(\d{2,5}(?:\.\d{1,2})?)\s*$/);
+
+                if (dateMatch && vehMatch && amtMatch) {
+                    let transId = line.match(/\b([0-9a-zA-Z]{10,20})\b/);
+                    let plazaStr = line
+                        .replace(dateMatch[0], '')
+                        .replace(vehMatch[0], '')
+                        .replace(amtMatch[0], '')
+                        .replace(transId ? transId[0] : '', '')
+                        .trim();
+
+                    extractedRows.push({
+                        Date: dateMatch[1],
+                        Vehicle: vehMatch[1],
+                        Amount: amtMatch[1],
+                        Plaza: plazaStr.replace(/[^a-zA-Z\s]/g, '').trim(),
+                        Id: transId ? transId[1] : null
+                    });
+                }
+            }
+        } else {
+            const workbook = xlsx.readFile(req.file.path);
+            const sheetName = workbook.SheetNames[0];
+            const rawRows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+            for (const row of rawRows) {
+                const keys = Object.keys(row);
+                const getDate = (k) => k.toLowerCase().includes('date') || k.toLowerCase().includes('time');
+                const getVech = (k) => k.toLowerCase().includes('vehicle') || k.toLowerCase().includes('reg');
+                const getPlaza = (k) => k.toLowerCase().includes('plaza') || k.toLowerCase().includes('toll');
+                const getAmt = (k) => k.toLowerCase().includes('amount') || k.toLowerCase().includes('fee');
+                const getTransId = (k) => k.toLowerCase().includes('id') || k.toLowerCase().includes('txn');
+
+                extractedRows.push({
+                    Date: row[keys.find(getDate)],
+                    Vehicle: row[keys.find(getVech)],
+                    Plaza: row[keys.find(getPlaza)],
+                    Amount: row[keys.find(getAmt)],
+                    Id: row[keys.find(getTransId)]
+                });
+            }
+        }
 
         const connection = await db.getConnection();
         await connection.beginTransaction();
 
         try {
-            for (const row of rows) {
-                // Determine fields (normalize keys)
-                const keys = Object.keys(row);
+            for (const row of extractedRows) {
+                if (!row.Date || !row.Vehicle || !row.Plaza || !row.Amount) continue;
 
-                const getDate = (k) => k.toLowerCase().includes('date') || k.toLowerCase().includes('time');
-                const getVech = (k) => k.toLowerCase().includes('vehicle');
-                const getPlaza = (k) => k.toLowerCase().includes('plaza') || k.toLowerCase().includes('toll');
-                const getAmt = (k) => k.toLowerCase().includes('amount') || k.toLowerCase().includes('fee');
-                const getTransId = (k) => k.toLowerCase().includes('id') || k.toLowerCase().includes('txn');
+                let vechVal = String(row.Vehicle).replace(/\s+/g, '').toUpperCase();
+                let transId = row.Id || `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
+                let amtVal = parseFloat(row.Amount);
 
-                let dateVal = row[keys.find(getDate)];
-                let vechVal = row[keys.find(getVech)];
-                let plazaVal = row[keys.find(getPlaza)];
-                let amtVal = row[keys.find(getAmt)];
-                let transId = row[keys.find(getTransId)] || `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
-
-                if (!dateVal || !vechVal || !plazaVal || !amtVal) continue; // Skip incomplete
-
-                // Clean data
-                vechVal = String(vechVal).replace(/\s+/g, '').toUpperCase();
-
-                // Convert Date if it's an Excel sequential number date
                 let transaction_date;
-                if (typeof dateVal === 'number') {
-                    transaction_date = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
+                if (typeof row.Date === 'number') {
+                    transaction_date = new Date(Math.round((row.Date - 25569) * 86400 * 1000));
                 } else {
-                    transaction_date = new Date(dateVal);
+                    transaction_date = new Date(row.Date);
+                }
+
+                if (isNaN(transaction_date.getTime())) {
+                    transaction_date = new Date(); // fallback
                 }
 
                 await connection.query(
                     `INSERT IGNORE INTO fastag_transactions 
                      (transaction_id, transaction_date, vehicle_number, toll_plaza_name, paid_amount) 
                      VALUES (?, ?, ?, ?, ?)`,
-                    [String(transId), transaction_date, vechVal, plazaVal, parseFloat(amtVal)]
+                    [String(transId), transaction_date, vechVal, row.Plaza, amtVal]
                 );
             }
             await connection.commit();
-            res.json({ message: 'File uploaded and processed successfully' });
+
+            // cleanup file
+            fs.unlinkSync(req.file.path);
+
+            res.json({ message: 'File uploaded and processed successfully', extractedRecords: extractedRows.length });
         } catch (insertError) {
             await connection.rollback();
             throw insertError;
@@ -150,9 +211,15 @@ router.post('/claims/generate', async (req, res) => {
             total_paid += parseFloat(t.paid_amount);
             total_approved += matchedApprovedRate;
 
+            const transDate = new Date(t.transaction_date);
+            const timeStr = transDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = transDate.toLocaleDateString('en-GB');
+
             details.push({
                 transaction_id: t.transaction_id,
-                date: t.transaction_date,
+                date: dateStr,
+                time: timeStr,
+                toll_reader_date_time: `${dateStr.split('/').join('/')} ${timeStr}`,
                 toll_plaza: t.toll_plaza_name,
                 paid_amount: parseFloat(t.paid_amount),
                 approved_rate: matchedApprovedRate,

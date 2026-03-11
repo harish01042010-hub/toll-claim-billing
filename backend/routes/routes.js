@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 
 // Add a route
 router.post('/', async (req, res) => {
-    const { name, loading_location, loading_sap_code, unloading_location, unloading_sap_code, rate_date, toll_plazas } = req.body;
+    const { name, loading_location, loading_sap_code, unloading_location, unloading_sap_code, rate_date, state, toll_plazas } = req.body;
     // toll_plazas should be an array of { name: 'Plaza1', approved_rate: 100 }
 
     let connection;
@@ -33,8 +33,8 @@ router.post('/', async (req, res) => {
         await connection.beginTransaction();
 
         const [routeResult] = await connection.query(
-            'INSERT INTO routes (name, loading_location, loading_sap_code, unloading_location, unloading_sap_code, rate_date) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, loading_location, loading_sap_code || null, unloading_location, unloading_sap_code || null, rate_date || null]
+            'INSERT INTO routes (name, loading_location, loading_sap_code, unloading_location, unloading_sap_code, rate_date, state) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, loading_location, loading_sap_code || null, unloading_location, unloading_sap_code || null, rate_date || null, state || null]
         );
         const routeId = routeResult.insertId;
 
@@ -107,46 +107,48 @@ router.post('/parse-pdf', upload.single('file'), async (req, res) => {
         const text = data.text;
 
         let routeName = '';
-        const routeMatch = text.match(/([a-zA-Z\s]+ TO [a-zA-Z\s]+)/i);
-        if (routeMatch) routeName = routeMatch[1].trim().toUpperCase();
+        const routeMatch = text.match(/([a-zA-Z\s&]+ TO [a-zA-Z\s&]+)/i);
+        if (routeMatch) {
+            routeName = routeMatch[1].replace(/LOADING\s*LOCATION/gi, '').replace(/TRANSPORTATION\s*ROUTES?/gi, '').trim().toUpperCase();
+        }
 
         let loadingLoc = '', unloadingLoc = '', loadingSap = '', unloadingSap = '';
 
-        // Find SAP codes - looking for 4-5 digit numbers and nearby text
-        const textLines = text.split('\n');
-        for (let i = 0; i < textLines.length; i++) {
-            const line = textLines[i].trim();
-            // Match pattern like: 1    6300    Kochi Refinery TPP    3306    Kurnool LPG Plant
-            const sapMatch = line.match(/\d+\s+(\d{4,5})\s+(.*?)\s+(\d{4,5})\s+(.*)/);
-            if (sapMatch) {
-                loadingSap = sapMatch[1];
-                loadingLoc = sapMatch[2].trim();
-                unloadingSap = sapMatch[3];
-                unloadingLoc = sapMatch[4].trim();
-                break;
-            }
+        // Extract SAP codes and locations from the top section before TOLL RATES
+        const topSection = text.split(/TOLL\s*RATES/i)[0] || text;
+        const sapCodes = [...topSection.matchAll(/\b(\d{4})\b/g)];
+        if (sapCodes.length >= 2) {
+            loadingSap = sapCodes[0][1];
+            unloadingSap = sapCodes[1][1];
+
+            const loc1Start = sapCodes[0].index + sapCodes[0][0].length;
+            const loc1End = sapCodes[1].index;
+            loadingLoc = topSection.substring(loc1Start, loc1End).replace(/[\n\r]/g, ' ').replace(/SAP|Code|Name|Loading|location|Unloading|SI\s*No/gi, '').trim();
+
+            const loc2Start = sapCodes[1].index + sapCodes[1][0].length;
+            unloadingLoc = topSection.substring(loc2Start).replace(/[\n\r]/g, ' ').replace(/SAP|Code|Name|Loading|location|Unloading|SI\s*No/gi, '').trim();
         }
 
         let rateDate = '';
         // Find rate date: DD-MM-YYYY
-        const dateMatch = text.match(/(\d{2}-\d{2}-\d{4})/);
+        const dateMatch = text.match(/(\d{2}[-/]\d{2}[-/]\d{4})/);
         if (dateMatch) {
-            const parts = dateMatch[1].split('-');
-            rateDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert to YYYY-MM-DD
+            const parts = dateMatch[1].split(/[-/]/);
+            if (parts[2].length === 4) {
+                rateDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert to YYYY-MM-DD
+            }
         }
 
         let plazas = [];
-        // Find tolls: \d+ Toll Name 515
-        for (const line of textLines) {
-            const m = line.match(/^\s*\d+\s+(.*?Toll.*?)\s+(\d+(?:\.\d+)?)\s*$/i);
-            if (m) {
-                plazas.push({ name: m[1].trim(), approved_rate: parseFloat(m[2]) });
-            } else {
-                // Secondary check for cases without "Toll" word but ending in numbers
-                const fallbackMatch = line.match(/^\s*\d+\s+([a-zA-Z\s().&]+)\s+(\d{2,4})\s*$/);
-                if (fallbackMatch && line.toLowerCase().includes('toll')) {
-                    plazas.push({ name: fallbackMatch[1].trim(), approved_rate: parseFloat(fallbackMatch[2]) });
-                }
+        const tollsText = text.substring(text.search(/TOLL\s*RATES/i));
+        const tollRegex = /(?:\b|^)\d+\s+([A-Za-z().&\s\-]+?(?:Toll|Plaza)[A-Za-z().&\s\-]*?)\s+(\d{2,5}(?:\.\d+)?)/gi;
+
+        let m;
+        while ((m = tollRegex.exec(tollsText)) !== null) {
+            const plazaName = m[1].replace(/[\n\r]/g, ' ').replace(/\s{2,}/g, ' ').trim();
+            // Add if not already extracted (prevent PDF page headers replicating same toll)
+            if (!plazas.some(p => p.name === plazaName)) {
+                plazas.push({ name: plazaName, approved_rate: parseFloat(m[2]) });
             }
         }
 

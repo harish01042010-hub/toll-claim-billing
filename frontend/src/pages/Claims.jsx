@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Search, Printer, Download, Save } from 'lucide-react';
+import { Search, Printer, Download, Save, Files } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 const Claims = () => {
     const [vehicles, setVehicles] = useState([]);
@@ -22,9 +24,9 @@ const Claims = () => {
     const fetchData = async () => {
         try {
             const [vehRes, routeRes, claimsRes] = await Promise.all([
-                axios.get('https://toll-claim-billing-production.up.railway.app/api/vehicles'),
-axios.get('https://toll-claim-billing-production.up.railway.app/api/routes'),
-axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims')
+                axios.get('http://localhost:5000/api/vehicles'),
+                axios.get('http://localhost:5000/api/routes'),
+                axios.get('http://localhost:5000/api/data/claims')
             ]);
             setVehicles(vehRes.data);
             setRoutes(routeRes.data);
@@ -45,7 +47,7 @@ axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims'
         setLoading(true);
         setClaimData(null);
         try {
-            const { data } = await axios.post('https://toll-claim-billing-production.up.railway.app/api/data/claims/generate', {
+            const { data } = await axios.post('http://localhost:5000/api/data/claims/generate', {
                 vehicle_number: selectedVehicle,
                 route_id: selectedRoute,
                 start_date: startDate || null,
@@ -62,7 +64,7 @@ axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims'
     const handleSaveClaim = async () => {
         if (!claimData) return;
         try {
-            const { data } = await axios.post('https://toll-claim-billing-production.up.railway.app/api/data/claims/save', {
+            const { data } = await axios.post('http://localhost:5000/api/data/claims/save', {
                 vehicle_number: claimData.vehicle_number,
                 route_id: claimData.route_id,
                 total_paid: claimData.total_paid,
@@ -83,6 +85,57 @@ axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims'
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const generatePdfFromElement = async (element, filename) => {
+        if (!element) return;
+
+        // Hide buttons matching 'print:hidden' for a clean capture
+        const hiddenElements = element.querySelectorAll('.print\\:hidden');
+        hiddenElements.forEach(el => el.style.opacity = '0');
+
+        try {
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+
+            hiddenElements.forEach(el => el.style.opacity = '1');
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            let heightLeft = pdfHeight;
+            let position = 0;
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save(filename);
+        } catch (err) {
+            console.error('PDF Generation Error', err);
+            hiddenElements.forEach(el => el.style.opacity = '1');
+        }
+    };
+
+    const handleDownloadSinglePdf = async () => {
+        await generatePdfFromElement(printRef.current, `Claim_${claimData.vehicle_number}_Single_Full.pdf`);
+    };
+
+    const handleDownloadSplitPdf = async () => {
+        const vendorBlock = document.getElementById('vendor-details-block');
+        const tollBlock = document.getElementById('toll-details-block');
+
+        if (vendorBlock) await generatePdfFromElement(vendorBlock, `Claim_${claimData.vehicle_number}_Vendor_Part.pdf`);
+        if (tollBlock) await generatePdfFromElement(tollBlock, `Claim_${claimData.vehicle_number}_Toll_Calc_Part.pdf`);
     };
 
     return (
@@ -132,26 +185,49 @@ axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims'
             {claimData && (
                 <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-8" ref={printRef}>
                     <div className="p-8 pb-4 border-b border-gray-100 flex justify-between items-start">
-                        <div>
-                            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Reimbursement Bill</h2>
-                            <p className="text-gray-500 mt-1">Vehicle: <span className="font-bold text-gray-800 uppercase">{claimData.vehicle_number}</span></p>
-                            <p className="text-gray-500">Route: <span className="font-bold text-gray-800">{routes.find(r => r.id == claimData.route_id)?.name}</span></p>
+                        <div className="print:hidden">
+                            {/* Title Removed for exact match */}
                         </div>
-                        <div className="text-right print:hidden space-x-2">
-                            <button onClick={handlePrint} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium inline-flex items-center gap-2 transition">
-                                <Printer size={18} /> Print
+                        <div className="text-right print:hidden space-x-2 flex items-center justify-end w-full">
+                            <button onClick={handleDownloadSinglePdf} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-1 shadow-sm transition">
+                                <Download size={16} /> Single PDF
                             </button>
-                            <button onClick={handleSaveClaim} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium inline-flex items-center gap-2 shadow-sm transition">
-                                <Save size={18} /> Save Claim
+                            <button onClick={handleDownloadSplitPdf} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-1 shadow-sm transition">
+                                <Files size={16} /> Split PDF
+                            </button>
+                            <button onClick={handlePrint} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-1 transition border">
+                                <Printer size={16} /> Print
+                            </button>
+                            <button onClick={handleSaveClaim} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-1 shadow-sm transition">
+                                <Save size={16} /> Save
                             </button>
                         </div>
                     </div>
 
-                    <div className="p-8">
-                        <table className="w-full text-xs border-collapse border border-gray-800 mb-4">
+                    <div className="p-8 pb-0 flex justify-between items-center bg-white border-b border-gray-100">
+                        <img src="/kvb_logo.png" alt="KVB" className="h-10 object-contain" />
+                        <div className="text-center font-bold">
+                            <h2 className="text-lg tracking-wider">KVB FASTAG</h2>
+                            <h3 className="text-md">TRANSACTION SUMMARY REPORT</h3>
+                        </div>
+                        <img src="/netc_fastag_logos.png" alt="NETC Fastag" className="h-10 object-contain" />
+                    </div>
+
+                    <div className="px-8 py-4 flex justify-between items-end border-b border-gray-100">
+                        <div className="text-[12px] font-medium text-gray-700">
+                            <p className="font-bold">Reports between:</p>
+                            <p>{claimData.start_date || 'Start Date'} To {claimData.end_date || 'End Date'}</p>
+                        </div>
+                        <div className="text-right text-[12px] font-medium text-gray-700">
+                            <p>Mobile number: <span className="font-bold">{claimData.transporter?.phone || '9443356010'}</span></p>
+                        </div>
+                    </div>
+
+                    <div className="p-8 pt-6" id="vendor-details-block">
+                        <table className="w-full text-xs border-collapse border border-gray-800 mb-4 bg-white">
                             <tbody>
                                 <tr>
-                                    <td colSpan="2" className="border border-gray-800 p-2 font-bold bg-gray-100">
+                                    <td colSpan="2" className="border border-gray-800 p-2 font-bold">
                                         Vendor Details, Address and Vendor Code, Contact details. Plant Manager Location
                                     </td>
                                     <td className="border border-gray-800 p-2">
@@ -183,7 +259,7 @@ axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims'
                                                 {claimData.route_info?.unloading_location || 'Unloading'} {claimData.route_info?.unloading_sap_code ? `[${claimData.route_info.unloading_sap_code}]` : ''}
                                             </span>
                                         </div>
-                                        <div className="mt-4 pt-4 border-t border-gray-300 font-bold bg-gray-50 -mx-4 -mb-4 px-4 py-2">
+                                        <div className="mt-4 pt-4 border-t border-gray-300 font-bold -mx-4 -mb-4 px-4 py-2">
                                             Bill From: {claimData.start_date ? new Date(claimData.start_date).toLocaleDateString('en-GB').replace(/\//g, '-') : '-'} To: {claimData.end_date ? new Date(claimData.end_date).toLocaleDateString('en-GB').replace(/\//g, '-') : '-'}
                                         </div>
                                     </td>
@@ -207,58 +283,72 @@ axios.get('https://toll-claim-billing-production.up.railway.app/api/data/claims'
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
 
-                        <table className="w-full text-center border-collapse border border-gray-800 text-xs">
+                    <div className="p-8 pt-0" id="toll-details-block">
+                        <table className="w-full text-center border-collapse border border-gray-800 text-xs bg-white">
                             <thead>
-                                <tr className="bg-gray-100 font-bold">
-                                    <th className="border border-gray-800 p-2">S.No</th>
-                                    <th className="border border-gray-800 p-2">Trans Date</th>
-                                    <th className="border border-gray-800 p-2">Transaction Id</th>
-                                    <th className="border border-gray-800 p-2">Toll Name</th>
-                                    <th className="border border-gray-800 p-2">Rate As on {claimData.route_info?.rate_date ? new Date(claimData.route_info.rate_date).toLocaleDateString('en-GB').replace(/\//g, '.') : '01.01.2018'}</th>
-                                    <th className="border border-gray-800 p-2">Approved Rate</th>
-                                    <th className="border border-gray-800 p-2">Toll Tax Paid</th>
-                                    <th className="border border-gray-800 p-2">Diff Amount</th>
+                                <tr className="font-bold bg-gray-50">
+                                    <th className="border border-gray-800 p-2 w-[4%]">S.No</th>
+                                    <th className="border border-gray-800 p-2 w-[8%]">DATE</th>
+                                    <th className="border border-gray-800 p-2 w-[8%]">TIME</th>
+                                    <th className="border border-gray-800 p-2 w-[12%]">TOLL_READER DATE_TIME</th>
+                                    <th className="border border-gray-800 p-2 w-[18%] text-[10px]">TXN_ID</th>
+                                    <th className="border border-gray-800 p-2 w-[16%]">TOLL NAME</th>
+                                    <th className="border border-gray-800 p-2 w-[8%] text-[9px]">RATE AS ON<br />{claimData.route_info?.rate_date ? new Date(claimData.route_info.rate_date).toLocaleDateString('en-GB').replace(/\//g, '.') : '01.01.2018'}</th>
+                                    <th className="border border-gray-800 p-2 w-[8%] text-[10px]">APPROVED RATE</th>
+                                    <th className="border border-gray-800 p-2 w-[8%] text-[10px]">TOLL TAX PAID</th>
+                                    <th className="border border-gray-800 p-2 w-[8%] text-[10px] text-red-600">DIFF AMOUNT</th>
                                 </tr>
                             </thead>
                             <tbody className="text-gray-800">
-                                {claimData.details.map((d, i) => (
-                                    <tr key={i} className="hover:bg-gray-50">
-                                        <td className="border border-gray-800 p-2">{i + 1}</td>
-                                        <td className="border border-gray-800 p-2">{new Date(d.date).toLocaleDateString('en-GB')}</td>
-                                        <td className="border border-gray-800 p-2 text-left">{d.transaction_id || '-'}</td>
-                                        <td className="border border-gray-800 p-2 text-left">{d.toll_plaza}</td>
-                                        <td className="border border-gray-800 p-2">{d.approved_rate ? d.approved_rate.toFixed(1) : '0.0'}</td>
-                                        <td className="border border-gray-800 p-2">{d.approved_rate ? d.approved_rate.toFixed(1) : '0.0'}</td>
-                                        <td className="border border-gray-800 p-2">{d.paid_amount.toFixed(1)}</td>
-                                        <td className="border border-gray-800 p-2">{d.difference.toFixed(1)}</td>
-                                    </tr>
-                                ))}
                                 {claimData.details.length === 0 && (
-                                    <tr><td colSpan="8" className="border border-gray-800 p-8 text-center text-gray-500">No FASTag transactions found for this selection.</td></tr>
+                                    <tr><td colSpan="11" className="border border-gray-800 p-8 text-center text-gray-500 font-bold">No FASTag transactions found for this selection.</td></tr>
+                                )}
+
+                                {/* Assuming for now all details fall under the route's state. If we need plant-wise, more logic goes here. */}
+                                {claimData.details.length > 0 && (
+                                    <>
+                                        <tr>
+                                            <td colSpan="11" className="border border-gray-800 p-2 font-bold bg-gray-50 text-left uppercase tracking-widest text-[11px]">
+                                                {claimData.route_info?.state ? `${claimData.route_info.state.toUpperCase()} STATE` : 'STATE DETAILS'}
+                                            </td>
+                                        </tr>
+                                        {claimData.details.map((d, i) => (
+                                            <tr key={i}>
+                                                <td className="border border-gray-800 p-1 px-2">{i + 1}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.date}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.time}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.toll_reader_date_time}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-left text-[11px] break-all">{d.transaction_id || '-'}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-left uppercase text-[11px]">{d.toll_plaza}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.approved_rate ? d.approved_rate.toFixed(1) : '0.0'}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-center font-bold">₹{d.approved_rate ? d.approved_rate.toFixed(1) : '0.0'}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-center font-bold">₹{d.paid_amount.toFixed(1)}</td>
+                                                <td className="border border-gray-800 p-1 px-2 text-center font-bold text-red-600">₹{d.difference.toFixed(1)}</td>
+                                            </tr>
+                                        ))}
+                                    </>
                                 )}
                             </tbody>
-                            {claimData.details.length > 0 &&
-                                <tfoot className="font-bold bg-gray-50">
-                                    <tr>
-                                        <td colSpan="4" className="border border-gray-800 p-2 text-left">
-                                            Amount in words: <span className="font-normal italic">Rs. {claimData.difference_amount} Only</span>
-                                        </td>
-                                        <td colSpan="3" className="border border-gray-800 p-2 text-right">Total Bill Amount</td>
-                                        <td className="border border-gray-800 p-2">{claimData.difference_amount}</td>
-                                    </tr>
-                                </tfoot>
-                            }
+                            <tfoot className="font-bold">
+                                {claimData.details.length > 0 && (
+                                    <>
+                                        <tr>
+                                            <td colSpan="7" className="border border-gray-800 p-2 text-left font-bold align-top">
+                                            </td>
+                                            <td colSpan="3" className="border border-gray-800 p-2 text-right font-bold align-middle bg-gray-50 uppercase tracking-wider">Total Bill Amount</td>
+                                            <td className="border border-gray-800 p-2 align-middle font-bold text-lg text-red-700 bg-gray-50 italic">₹{claimData.difference_amount}</td>
+                                        </tr>
+                                        <tr>
+                                            <td colSpan="11" className="border border-gray-800 p-4 h-32 align-bottom text-center font-bold">
+                                                Signature & Stamp (Transporter)
+                                            </td>
+                                        </tr>
+                                    </>
+                                )}
+                            </tfoot>
                         </table>
-
-                        {claimData.details.length > 0 && (
-                            <div className="mt-8 flex justify-end">
-                                <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl w-full max-w-sm text-right">
-                                    <h4 className="text-blue-800 uppercase text-xs font-bold tracking-widest mb-2">Final Claimable Amount</h4>
-                                    <p className="text-4xl font-extrabold text-blue-900 tracking-tighter">₹ {Math.max(0, claimData.difference_amount)}</p>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             )}

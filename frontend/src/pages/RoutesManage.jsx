@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Route, Plus, Trash2, MapPin, Download, Upload } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const RoutesManage = () => {
     const [routes, setRoutes] = useState([]);
@@ -15,6 +15,7 @@ const RoutesManage = () => {
     const [unloadingLoc, setUnloadingLoc] = useState('');
     const [unloadingSap, setUnloadingSap] = useState('');
     const [rateDate, setRateDate] = useState('');
+    const [stateLocation, setStateLocation] = useState('');
 
     // Toll Plazas
     const [plazas, setPlazas] = useState([{ name: '', approved_rate: '' }]);
@@ -50,12 +51,14 @@ const RoutesManage = () => {
                 unloading_location: unloadingLoc,
                 unloading_sap_code: unloadingSap,
                 rate_date: rateDate,
+                state: stateLocation,
                 toll_plazas: plazas.filter(p => p.name && p.approved_rate)
             });
             setShowAdd(false);
-            setRouteName(''); setLoadingLoc(''); setLoadingSap(''); setUnloadingLoc(''); setUnloadingSap(''); setRateDate('');
+            setRouteName(''); setLoadingLoc(''); setLoadingSap(''); setUnloadingLoc(''); setUnloadingSap(''); setRateDate(''); setStateLocation('');
             setPlazas([{ name: '', approved_rate: '' }]);
             fetchData();
+
         } catch (err) {
             alert('Error adding route');
         }
@@ -90,40 +93,173 @@ const RoutesManage = () => {
         }
     };
 
-    const handleDownloadPdf = (route) => {
-        const doc = new jsPDF();
+    const handleDownloadPdf = async (routeSummary) => {
+        try {
+            // First fetch the full details including toll plazas
+            const { data: route } = await axios.get(`http://localhost:5000/api/routes/${routeSummary.id}`);
 
-        doc.setFontSize(14);
-        doc.text(route.name || 'ROUTE TOLL MAPPING', 105, 15, { align: 'center' });
+            const doc = new jsPDF();
 
-        doc.setFontSize(10);
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
 
-        // Locations Table
-        doc.autoTable({
-            startY: 25,
-            head: [['', 'Loading location', 'Unloading location']],
-            body: [
-                ['SAP Code', route.loading_sap_code || '-', route.unloading_sap_code || '-'],
-                ['Name', route.loading_location || '-', route.unloading_location || '-']
-            ],
-            theme: 'grid',
-            headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0] }
-        });
+            // Title Box
+            doc.setLineWidth(0.5);
+            doc.rect(14, 15, 182, 8);
+            doc.text(route.name || 'ROUTE DIRECTORY', 105, 20, { align: 'center' });
 
-        // Tolls Table
-        const tollBody = route.toll_plazas ? route.toll_plazas.map((p, i) => [
-            i + 1, p.name, p.approved_rate
-        ]) : [];
+            // Locations Table
+            autoTable(doc, {
+                startY: 30,
+                theme: 'grid',
+                styles: { fontSize: 8, font: 'helvetica', lineColor: 0, lineWidth: 0.2, textColor: 0 },
+                headStyles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center', textColor: 0 },
+                head: [
+                    [
+                        { content: 'TRANSPORTATION ROUTES', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+                        { content: 'SI No.', rowSpan: 2, styles: { valign: 'middle' } },
+                        { content: 'Loading location', colSpan: 2 },
+                        { content: 'Unloading location', colSpan: 2 }
+                    ],
+                    ['SAP Code', 'Name', 'SAP Code', 'Name']
+                ],
+                body: [
+                    ['', { content: '1', styles: { textColor: [200, 0, 0] } }, route.loading_sap_code || '-', route.loading_location || '-', route.unloading_sap_code || '-', route.unloading_location || '-']
+                ],
+                columnStyles: {
+                    2: { halign: 'center' },
+                    4: { halign: 'center' }
+                }
+            });
 
-        doc.autoTable({
-            startY: doc.lastAutoTable.finalY + 10,
-            head: [['S.No', 'Toll Name', route.rate_date ? new Date(route.rate_date).toLocaleDateString() : 'Rate']],
-            body: tollBody,
-            theme: 'grid',
-            headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0] }
-        });
+            // Tolls Table
+            const tollBody = route.toll_plazas ? route.toll_plazas.map((p, i) => [
+                i + 1, p.name, p.approved_rate
+            ]) : [];
 
-        doc.save(`${route.name || 'Route'}_Tolls.pdf`);
+            // Calculate total
+            const totalToll = route.toll_plazas ? route.toll_plazas.reduce((sum, p) => sum + Number(p.approved_rate), 0) : 0;
+
+            // Add total row at the end of the body
+            tollBody.push([
+                { content: 'Total', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
+                { content: totalToll, styles: { fontStyle: 'bold' } }
+            ]);
+
+            let rateDateStr = '-';
+            if (route.rate_date) {
+                const d = new Date(route.rate_date);
+                rateDateStr = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+            }
+
+            autoTable(doc, {
+                startY: doc.lastAutoTable.finalY + 10,
+                tableWidth: 150,
+                theme: 'grid',
+                styles: { fontSize: 8, font: 'helvetica', lineColor: 0, lineWidth: 0.2, textColor: 0 },
+                headStyles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 0 },
+                head: [
+                    [{ content: 'TOLL RATES', colSpan: 2, styles: { halign: 'center' } }, { content: '' }],
+                    ['S.No', 'Toll Name', { content: rateDateStr, styles: { halign: 'center' } }]
+                ],
+                body: tollBody,
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 15 },
+                    1: { cellWidth: 110 },
+                    2: { halign: 'right', cellWidth: 25 }
+                }
+            });
+
+            doc.save(`${route.name || 'Route'}_Tolls.pdf`);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to generate PDF. Could not load route details.');
+        }
+    };
+
+    const handleDownloadAllPdf = async () => {
+        if (routes.length === 0) return alert('No routes to download.');
+        try {
+            const doc = new jsPDF();
+
+            for (let i = 0; i < routes.length; i++) {
+                if (i > 0) doc.addPage();
+
+                const { data: route } = await axios.get(`http://localhost:5000/api/routes/${routes[i].id}`);
+
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+
+                // Title Box
+                doc.setLineWidth(0.5);
+                doc.rect(14, 15, 182, 8);
+                doc.text(route.name || 'ROUTE DIRECTORY', 105, 20, { align: 'center' });
+
+                // Locations Table
+                autoTable(doc, {
+                    startY: 30,
+                    theme: 'grid',
+                    styles: { fontSize: 8, font: 'helvetica', lineColor: 0, lineWidth: 0.2, textColor: 0 },
+                    headStyles: { fillColor: [220, 220, 220], fontStyle: 'bold', halign: 'center', textColor: 0 },
+                    head: [
+                        [
+                            { content: 'TRANSPORTATION ROUTES', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+                            { content: 'SI No.', rowSpan: 2, styles: { valign: 'middle' } },
+                            { content: 'Loading location', colSpan: 2 },
+                            { content: 'Unloading location', colSpan: 2 }
+                        ],
+                        ['SAP Code', 'Name', 'SAP Code', 'Name']
+                    ],
+                    body: [
+                        ['', { content: '1', styles: { textColor: [200, 0, 0] } }, route.loading_sap_code || '-', route.loading_location || '-', route.unloading_sap_code || '-', route.unloading_location || '-']
+                    ],
+                    columnStyles: {
+                        2: { halign: 'center' },
+                        4: { halign: 'center' }
+                    }
+                });
+
+                // Tolls Table
+                const tollBody = route.toll_plazas ? route.toll_plazas.map((p, idx) => [
+                    idx + 1, p.name, p.approved_rate
+                ]) : [];
+
+                const totalToll = route.toll_plazas ? route.toll_plazas.reduce((sum, p) => sum + Number(p.approved_rate), 0) : 0;
+                tollBody.push([
+                    { content: 'Total', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold' } },
+                    { content: totalToll, styles: { fontStyle: 'bold' } }
+                ]);
+
+                let rateDateStr = '-';
+                if (route.rate_date) {
+                    const d = new Date(route.rate_date);
+                    rateDateStr = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+                }
+
+                autoTable(doc, {
+                    startY: doc.lastAutoTable.finalY + 10,
+                    tableWidth: 150,
+                    theme: 'grid',
+                    styles: { fontSize: 8, font: 'helvetica', lineColor: 0, lineWidth: 0.2, textColor: 0 },
+                    headStyles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 0 },
+                    head: [
+                        [{ content: 'TOLL RATES', colSpan: 2, styles: { halign: 'center' } }, { content: '' }],
+                        ['S.No', 'Toll Name', { content: rateDateStr, styles: { halign: 'center' } }]
+                    ],
+                    body: tollBody,
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 15 },
+                        1: { cellWidth: 110 },
+                        2: { halign: 'right', cellWidth: 25 }
+                    }
+                });
+            }
+
+            doc.save('All_Routes_Toll_Mapping.pdf');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to generate full PDF.');
+        }
     };
 
     const deleteRoute = async (id) => {
@@ -138,6 +274,9 @@ const RoutesManage = () => {
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Route & Toll Management</h1>
                 <div className="flex gap-3">
+                    <button onClick={handleDownloadAllPdf} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg shadow-sm flex items-center gap-2 transition font-medium">
+                        <Download size={18} /> Download All
+                    </button>
                     <label className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg shadow-sm flex items-center gap-2 cursor-pointer transition font-medium">
                         <Upload size={18} /> Import PDF
                         <input type="file" accept=".pdf" className="hidden" onChange={handleImportPdf} />
@@ -156,9 +295,13 @@ const RoutesManage = () => {
                     <h2 className="text-xl font-bold mb-6 text-gray-800 border-b pb-4">Create New Route</h2>
                     <form onSubmit={handleAddRoute} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-4 border-gray-100">
-                            <div>
+                            <div className="md:col-span-3">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Route Name</label>
-                                <input required value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="e.g. Kochi-Kurnool" className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 outline-none" />
+                                <input required value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="e.g. Chennai to Madurai" className="w-full border rounded-lg px-4 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                                <input required value={stateLocation} onChange={e => setStateLocation(e.target.value)} placeholder="e.g. Tamil Nadu" className="w-full border rounded-lg px-4 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition uppercase" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Rate Date</label>
