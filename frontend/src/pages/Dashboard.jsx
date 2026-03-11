@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Truck, Map, CreditCard, Activity } from 'lucide-react';
 import {
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
     LineChart,
     Line,
     XAxis,
@@ -34,7 +36,7 @@ const Dashboard = () => {
 
     const fetchStats = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5000/api/data/stats');
+            const { data } = await axios.get(`${API}/api/data/stats`);
             setStats(data);
         } catch (err) {
             console.error(err);

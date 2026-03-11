@@ -4,12 +4,16 @@ import { Search, Printer, Download, Save, Files } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const Claims = () => {
     const [vehicles, setVehicles] = useState([]);
     const [routes, setRoutes] = useState([]);
+    const [reports, setReports] = useState([]);
 
     const [selectedVehicle, setSelectedVehicle] = useState('');
     const [selectedRoute, setSelectedRoute] = useState('');
+    const [selectedReportId, setSelectedReportId] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [shipmentNo, setShipmentNo] = useState('');
@@ -23,14 +27,16 @@ const Claims = () => {
 
     const fetchData = async () => {
         try {
-            const [vehRes, routeRes, claimsRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/vehicles'),
-                axios.get('http://localhost:5000/api/routes'),
-                axios.get('http://localhost:5000/api/data/claims')
+            const [vehRes, routeRes, claimsRes, reportsRes] = await Promise.all([
+                axios.get(`${API}/api/vehicles`),
+                axios.get(`${API}/api/routes`),
+                axios.get(`${API}/api/data/claims`),
+                axios.get(`${API}/api/data/fastag-reports`)
             ]);
             setVehicles(vehRes.data);
             setRoutes(routeRes.data);
             setPastClaims(claimsRes.data);
+            setReports(reportsRes.data);
         } catch (err) {
             console.error(err);
         }
@@ -47,11 +53,12 @@ const Claims = () => {
         setLoading(true);
         setClaimData(null);
         try {
-            const { data } = await axios.post('http://localhost:5000/api/data/claims/generate', {
+            const { data } = await axios.post(`${API}/api/data/claims/generate`, {
                 vehicle_number: selectedVehicle,
                 route_id: selectedRoute,
                 start_date: startDate || null,
-                end_date: endDate || null
+                end_date: endDate || null,
+                report_id: selectedReportId || null
             });
             setClaimData({ ...data, shipment_no: shipmentNo, shipment_date: shipmentDate, start_date: startDate, end_date: endDate });
         } catch (err) {
@@ -64,7 +71,7 @@ const Claims = () => {
     const handleSaveClaim = async () => {
         if (!claimData) return;
         try {
-            const { data } = await axios.post('http://localhost:5000/api/data/claims/save', {
+            const { data } = await axios.post(`${API}/api/data/claims/save`, {
                 vehicle_number: claimData.vehicle_number,
                 route_id: claimData.route_id,
                 total_paid: claimData.total_paid,
@@ -145,7 +152,27 @@ const Claims = () => {
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border print:hidden">
-                <form className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end" onSubmit={handleGenerate}>
+                <form className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" onSubmit={handleGenerate}>
+                    <div className="col-span-1 md:col-span-2">
+                        <label className="block text-sm font-medium text-blue-700 mb-1">Upload Report (Optional)</label>
+                        <select 
+                            value={selectedReportId} 
+                            onChange={e => {
+                                const repId = e.target.value;
+                                setSelectedReportId(repId);
+                                const r = reports.find(rep => String(rep.id) === String(repId));
+                                if(r && r.vehicle_number) setSelectedVehicle(r.vehicle_number);
+                            }} 
+                            className="w-full border-blue-300 border bg-blue-50 rounded-lg px-4 py-2 font-medium"
+                        >
+                            <option value="">-- Use Date Range Instead --</option>
+                            {reports.map(r => (
+                                <option key={r.id} value={r.id}>
+                                    {r.original_filename} ({r.vehicle_number || 'Unknown'} - {r.record_count} TXN)
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                     <div className="col-span-1 md:col-span-1">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
                         <select required value={selectedVehicle} onChange={e => setSelectedVehicle(e.target.value)} className="w-full border rounded-lg px-4 py-2 bg-gray-50 uppercase object-cover">
@@ -153,7 +180,7 @@ const Claims = () => {
                             {vehicles.map(v => <option key={v.id} value={v.vehicle_number}>{v.vehicle_number}</option>)}
                         </select>
                     </div>
-                    <div className="col-span-1 md:col-span-1">
+                    <div className="col-span-1 md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Route</label>
                         <select required value={selectedRoute} onChange={e => setSelectedRoute(e.target.value)} className="w-full border rounded-lg px-4 py-2 bg-gray-50">
                             <option value="">Select Route</option>
@@ -162,11 +189,11 @@ const Claims = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Start Date (Opt)</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full border rounded-lg px-4 py-2 bg-gray-50" />
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!!selectedReportId} className="w-full border rounded-lg px-4 py-2 bg-gray-50 disabled:opacity-50" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">End Date (Opt)</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full border rounded-lg px-4 py-2 bg-gray-50" />
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!!selectedReportId} className="w-full border rounded-lg px-4 py-2 bg-gray-50 disabled:opacity-50" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Shipment No</label>

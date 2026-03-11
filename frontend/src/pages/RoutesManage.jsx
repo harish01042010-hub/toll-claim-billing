@@ -4,6 +4,8 @@ import { Route, Plus, Trash2, MapPin, Download, Upload } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const RoutesManage = () => {
     const [routes, setRoutes] = useState([]);
     const [showAdd, setShowAdd] = useState(false);
@@ -22,7 +24,7 @@ const RoutesManage = () => {
 
     const fetchData = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5000/api/routes');
+            const { data } = await axios.get(`${API}/api/routes`);
             setRoutes(data);
         } catch (err) {
             console.error(err);
@@ -44,7 +46,7 @@ const RoutesManage = () => {
     const handleAddRoute = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/routes', {
+            await axios.post(`${API}/api/routes`, {
                 name: routeName,
                 loading_location: loadingLoc,
                 loading_sap_code: loadingSap,
@@ -72,7 +74,7 @@ const RoutesManage = () => {
         formData.append('file', file);
 
         try {
-            const { data } = await axios.post('http://localhost:5000/api/routes/parse-pdf', formData, {
+            const { data } = await axios.post(`${API}/api/routes/parse-pdf`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

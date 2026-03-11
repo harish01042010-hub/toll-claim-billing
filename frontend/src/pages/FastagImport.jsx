@@ -2,24 +2,31 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { UploadCloud, CheckCircle, AlertCircle } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const FastagImport = () => {
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
     const [error, setError] = useState(null);
     const [transactions, setTransactions] = useState([]);
+    const [reports, setReports] = useState([]);
 
-    const fetchTransactions = async () => {
+    const fetchData = async () => {
         try {
-            const { data } = await axios.get('http://localhost:5000/api/data/fastag-transactions');
-            setTransactions(data);
+            const [transRes, reportsRes] = await Promise.all([
+                axios.get(`${API}/api/data/fastag-transactions`),
+                axios.get(`${API}/api/data/fastag-reports`)
+            ]);
+            setTransactions(transRes.data);
+            setReports(reportsRes.data);
         } catch (err) {
-            console.error('Failed to fetch transactions', err);
+            console.error('Failed to fetch data', err);
         }
     };
 
     useEffect(() => {
-        fetchTransactions();
+        fetchData();
     }, []);
 
     const handleFileSelect = async (e) => {
@@ -35,11 +42,11 @@ const FastagImport = () => {
         formData.append('file', selectedFile);
 
         try {
-            await axios.post('http://localhost:5000/api/data/upload', formData, {
+            await axios.post(`${API}/api/data/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setMessage('FASTag transactions imported successfully!');
-            fetchTransactions();
+            fetchData();
             setTimeout(() => {
                 setFile(null);
                 setMessage(null);
@@ -99,6 +106,47 @@ const FastagImport = () => {
                     <li><b>Transaction ID</b> (optional, will auto-generate if missing)</li>
                 </ul>
             </div>
+
+            {reports.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-8">
+                    <div className="p-6 border-b border-gray-100">
+                        <h2 className="text-lg font-bold text-gray-800">Uploaded FASTag Reports</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-center border-collapse border border-gray-800 text-sm bg-white">
+                            <thead>
+                                <tr className="bg-gray-100 font-bold text-gray-800">
+                                    <th className="border border-gray-800 p-3">Upload Date</th>
+                                    <th className="border border-gray-800 p-3">File Name</th>
+                                    <th className="border border-gray-800 p-3">Primary Vehicle</th>
+                                    <th className="border border-gray-800 p-3">Records Found</th>
+                                    <th className="border border-gray-800 p-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-gray-800">
+                                {reports.map((r) => (
+                                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="border border-gray-800 p-3">{new Date(r.created_at).toLocaleString()}</td>
+                                        <td className="border border-gray-800 p-3 text-gray-600 font-medium">{r.original_filename}</td>
+                                        <td className="border border-gray-800 p-3 font-bold uppercase">{r.vehicle_number || '-'}</td>
+                                        <td className="border border-gray-800 p-3 text-blue-600 font-bold">{r.record_count}</td>
+                                        <td className="border border-gray-800 p-3">
+                                            <a 
+                                                href={`\${API}/api/data/download-report/${r.id}`} 
+                                                className="text-primary-600 hover:text-primary-800 font-medium underline"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Download
+                                            </a>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {transactions.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-8">

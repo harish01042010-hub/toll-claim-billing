@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Truck } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const Login = ({ onLogin }) => {
     const [username, setUsername] = useState('admin');
     const [password, setPassword] = useState('password123');
@@ -10,7 +12,7 @@ const Login = ({ onLogin }) => {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const { data } = await axios.post('http://localhost:5000/api/auth/login', { username, password });
+            const { data } = await axios.post(`${API}/api/auth/login`, { username, password });
             onLogin(data.token);
         } catch (err) {
             setError('Invalid username or password');

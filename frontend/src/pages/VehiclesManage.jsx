@@ -4,6 +4,8 @@ import { Truck, Plus, Trash2, Download, Upload } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const VehiclesManage = () => {
     const [vehicles, setVehicles] = useState([]);
     const [transporters, setTransporters] = useState([]);
@@ -27,8 +29,8 @@ const VehiclesManage = () => {
     const fetchData = async () => {
         try {
             const [vehRes, transRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/vehicles'),
-                axios.get('http://localhost:5000/api/transporters')
+                axios.get(`${API}/api/vehicles`),
+                axios.get(`${API}/api/transporters`)
             ]);
             setVehicles(vehRes.data);
             setTransporters(transRes.data);
@@ -49,7 +51,7 @@ const VehiclesManage = () => {
         formData.append('file', file);
 
         try {
-            const { data } = await axios.post('http://localhost:5000/api/transporters/parse-pdf', formData, {
+            const { data } = await axios.post(`${API}/api/transporters/parse-pdf`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -141,7 +143,7 @@ const VehiclesManage = () => {
     const handleAddTransporter = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/transporters', {
+            await axios.post(`${API}/api/transporters`, {
                 name: tName, contact_person: tContact, phone: tPhone, address: tAddress, gstin: tGstin, pan_number: tPan, vendor_code: tVendorCode, plant_manager_address: tPlantAddress
             });
             setTName(''); setTContact(''); setTPhone(''); setTAddress(''); setTGstin(''); setTPan(''); setTVendorCode(''); setTPlantAddress('');
@@ -154,7 +156,7 @@ const VehiclesManage = () => {
     const handleAddVehicle = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/vehicles', {
+            await axios.post(`${API}/api/vehicles`, {
                 transporter_id: vTransporter,
                 vehicle_number: vNumber,
                 driver_name: vDriver
