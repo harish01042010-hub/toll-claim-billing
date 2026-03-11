@@ -407,7 +407,7 @@ const Claims = () => {
                             </table>
                         </div>
                     </div>  </div>
-                </div>
+               
             )}
 
             {/* Past Claims List (Hidden from Print) */}
@@ -439,6 +439,7 @@ const Claims = () => {
             </div>
 
         </div>
+
     );
 };
 
