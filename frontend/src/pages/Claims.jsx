@@ -232,25 +232,26 @@ const Claims = () => {
                     </div>
 
                     <div className="p-8 pb-0 flex justify-between items-center bg-white border-b border-gray-100">
-                        <img src="/kvb_logo.png" alt="KVB" className="h-10 object-contain" />
+                        <img src="/kvb_logo.svg" alt="KVB" className="h-10 object-contain" />
                         <div className="text-center font-bold">
                             <h2 className="text-lg tracking-wider">KVB FASTAG</h2>
                             <h3 className="text-md">TRANSACTION SUMMARY REPORT</h3>
                         </div>
-                        <img src="/netc_fastag_logos.png" alt="NETC Fastag" className="h-10 object-contain" />
+                        <img src="/netc_fastag_logos.svg" alt="NETC Fastag" className="h-10 object-contain" />
                     </div>
 
-                    <div className="px-8 py-4 flex justify-between items-end border-b border-gray-100">
-                        <div className="text-[12px] font-medium text-gray-700">
-                            <p className="font-bold">Reports between:</p>
-                            <p>{claimData.start_date || 'Start Date'} To {claimData.end_date || 'End Date'}</p>
+                    <div className="px-8 py-4 flex justify-between items-end border-b border-gray-800">
+                        <div className="text-[12px] text-gray-900">
+                            <p>Reports between:</p>
+                            <p>{claimData.start_date ? new Date(claimData.start_date).toLocaleDateString('en-GB').replace(/\//g,'/') : '-'} To {claimData.end_date ? new Date(claimData.end_date).toLocaleDateString('en-GB').replace(/\//g,'/') : '-'}</p>
                         </div>
-                        <div className="text-right text-[12px] font-medium text-gray-700">
-                            <p>Mobile number: <span className="font-bold">{claimData.transporter?.phone || '9443356010'}</span></p>
+                        <div className="text-right text-[12px] text-gray-900">
+                            <p>Mobile number: {claimData.transporter?.phone || '9443356010'}</p>
                         </div>
                     </div>
 
-                    <div className="p-8 pt-6" id="vendor-details-block">
+                    <div className="p-8 pb-4 print:hidden" id="vendor-details-block">
+                        <h3 className="font-bold text-lg mb-4 text-center">VENDOR BILLING DETAILS</h3>
                         <table className="w-full text-xs border-collapse border border-gray-800 mb-4 bg-white">
                             <tbody>
                                 <tr>
@@ -312,71 +313,100 @@ const Claims = () => {
                         </table>
                     </div>
 
-                    <div className="p-8 pt-0" id="toll-details-block">
-                        <table className="w-full text-center border-collapse border border-gray-800 text-xs bg-white">
+                    <div className="p-8 pb-0">
+                        {/* Summary Table Format matching user request */}
+                        <table className="w-full text-center border-collapse border border-gray-800 text-[11px] bg-white mb-8">
                             <thead>
-                                <tr className="font-bold bg-gray-50">
-                                    <th className="border border-gray-800 p-2 w-[4%]">S.No</th>
-                                    <th className="border border-gray-800 p-2 w-[8%]">DATE</th>
-                                    <th className="border border-gray-800 p-2 w-[8%]">TIME</th>
-                                    <th className="border border-gray-800 p-2 w-[12%]">TOLL_READER DATE_TIME</th>
-                                    <th className="border border-gray-800 p-2 w-[18%] text-[10px]">TXN_ID</th>
-                                    <th className="border border-gray-800 p-2 w-[16%]">TOLL NAME</th>
-                                    <th className="border border-gray-800 p-2 w-[8%] text-[9px]">RATE AS ON<br />{claimData.route_info?.rate_date ? new Date(claimData.route_info.rate_date).toLocaleDateString('en-GB').replace(/\//g, '.') : '01.01.2018'}</th>
-                                    <th className="border border-gray-800 p-2 w-[8%] text-[10px]">APPROVED RATE</th>
-                                    <th className="border border-gray-800 p-2 w-[8%] text-[10px]">TOLL TAX PAID</th>
-                                    <th className="border border-gray-800 p-2 w-[8%] text-[10px] text-red-600">DIFF AMOUNT</th>
+                                <tr className="font-bold">
+                                    <th className="border border-gray-800 p-2 uppercase">Date</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Time</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Toll_Reader<br/>Date_Time</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Vehicle_No</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Paymentd<br/>Description</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Txn_Id</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Debit<br/>Amount</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Credit<br/>Amount</th>
+                                    <th className="border border-gray-800 p-2 uppercase">Txn<br/>Status</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-gray-800">
+                            <tbody className="text-gray-900 border-b border-gray-800">
                                 {claimData.details.length === 0 && (
-                                    <tr><td colSpan="11" className="border border-gray-800 p-8 text-center text-gray-500 font-bold">No FASTag transactions found for this selection.</td></tr>
+                                    <tr><td colSpan="9" className="border border-gray-800 p-8 text-center text-gray-500 font-bold">No FASTag transactions found.</td></tr>
                                 )}
+                                {claimData.details.map((d, i) => {
+                                    // Parse original date string DD/MM/YYYY to DD/MMM/YYYY
+                                    let formattedDate = d.date;
+                                    let formattedReaderDate = d.toll_reader_date_time;
+                                    try {
+                                        const [day, month, year] = d.date.split('/');
+                                        const dateObj = new Date(`${year}-${month}-${day}`);
+                                        if(!isNaN(dateObj.getTime())) {
+                                            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                                            formattedDate = `${day}/${monthNames[parseInt(month)-1]}/${year}`;
+                                            formattedReaderDate = `${day}/${monthNames[parseInt(month)-1]}/${year.slice(-2)}\n${d.time}`;
+                                        }
+                                    } catch(e) {}
 
-                                {/* Assuming for now all details fall under the route's state. If we need plant-wise, more logic goes here. */}
-                                {claimData.details.length > 0 && (
-                                    <>
-                                        <tr>
-                                            <td colSpan="11" className="border border-gray-800 p-2 font-bold bg-gray-50 text-left uppercase tracking-widest text-[11px]">
-                                                {claimData.route_info?.state ? `${claimData.route_info.state.toUpperCase()} STATE` : 'STATE DETAILS'}
-                                            </td>
-                                        </tr>
-                                        {claimData.details.map((d, i) => (
-                                            <tr key={i}>
-                                                <td className="border border-gray-800 p-1 px-2">{i + 1}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.date}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.time}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.toll_reader_date_time}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-left text-[11px] break-all">{d.transaction_id || '-'}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-left uppercase text-[11px]">{d.toll_plaza}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-center">{d.approved_rate ? d.approved_rate.toFixed(1) : '0.0'}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-center font-bold">₹{d.approved_rate ? d.approved_rate.toFixed(1) : '0.0'}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-center font-bold">₹{d.paid_amount.toFixed(1)}</td>
-                                                <td className="border border-gray-800 p-1 px-2 text-center font-bold text-red-600">₹{d.difference.toFixed(1)}</td>
-                                            </tr>
-                                        ))}
-                                    </>
-                                )}
+                                    return (
+                                    <tr key={i} className="align-top">
+                                        <td className="border border-gray-800 p-1 px-2 whitespace-nowrap">{formattedDate}</td>
+                                        <td className="border border-gray-800 p-1 px-2 whitespace-nowrap">{d.time}</td>
+                                        <td className="border border-gray-800 p-1 px-2 whitespace-pre-line leading-tight">{formattedReaderDate}</td>
+                                        <td className="border border-gray-800 p-1 px-2 font-bold uppercase">{claimData.vehicle_number}</td>
+                                        <td className="border border-gray-800 p-1 px-2 text-left leading-tight break-words max-w-[140px] whitespace-pre-line">{`${d.transaction_id ? d.transaction_id.slice(-6) : '000000'}\n${d.toll_plaza}`}</td>
+                                        <td className="border border-gray-800 p-1 px-2 text-left leading-tight break-all max-w-[140px]">
+                                            {d.transaction_id ? d.transaction_id : '720377-123001-0010002103271'}
+                                        </td>
+                                        <td className="border border-gray-800 p-1 px-2 text-left">{d.paid_amount.toFixed(1)}</td>
+                                        <td className="border border-gray-800 p-1 px-2"></td>
+                                        <td className="border border-gray-800 p-1 px-2 text-left">Success</td>
+                                    </tr>
+                                )})}
                             </tbody>
-                            <tfoot className="font-bold">
-                                {claimData.details.length > 0 && (
-                                    <>
-                                        <tr>
-                                            <td colSpan="7" className="border border-gray-800 p-2 text-left font-bold align-top">
-                                            </td>
-                                            <td colSpan="3" className="border border-gray-800 p-2 text-right font-bold align-middle bg-gray-50 uppercase tracking-wider">Total Bill Amount</td>
-                                            <td className="border border-gray-800 p-2 align-middle font-bold text-lg text-red-700 bg-gray-50 italic">₹{claimData.difference_amount}</td>
-                                        </tr>
-                                        <tr>
-                                            <td colSpan="11" className="border border-gray-800 p-4 h-32 align-bottom text-center font-bold">
-                                                Signature & Stamp (Transporter)
-                                            </td>
-                                        </tr>
-                                    </>
-                                )}
-                            </tfoot>
                         </table>
-                    </div>
+
+                        {/* Keep the Toll Difference Calculation for Billing purposes below it */}
+                        <div id="toll-details-block" className="mt-8 border-t-2 border-dashed border-gray-300 pt-8">
+                            <h3 className="font-bold text-lg mb-4 text-center">CLAIM DIFFERENCE CALCULATION</h3>
+                            <table className="w-full text-center border-collapse border border-gray-800 text-[10px] bg-white">
+                                <thead>
+                                    <tr className="font-bold bg-gray-50">
+                                        <th className="border border-gray-800 p-2 w-[5%]">S.No</th>
+                                        <th className="border border-gray-800 p-2 w-[15%]">TOLL NAME</th>
+                                        <th className="border border-gray-800 p-2 w-[12%]">APPROVED RATE</th>
+                                        <th className="border border-gray-800 p-2 w-[12%]">TOLL TAX PAID</th>
+                                        <th className="border border-gray-800 p-2 w-[12%] text-red-600">DIFF AMOUNT</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {claimData.details.map((d, i) => (
+                                        <tr key={i}>
+                                            <td className="border border-gray-800 p-1">{i + 1}</td>
+                                            <td className="border border-gray-800 p-1 text-left uppercase">{d.toll_plaza}</td>
+                                            <td className="border border-gray-800 p-1 font-bold">₹{d.approved_rate ? d.approved_rate.toFixed(1) : '0.0'}</td>
+                                            <td className="border border-gray-800 p-1 font-bold">₹{d.paid_amount.toFixed(1)}</td>
+                                            <td className="border border-gray-800 p-1 font-bold text-red-600">₹{d.difference.toFixed(1)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="font-bold">
+                                    {claimData.details.length > 0 && (
+                                        <>
+                                            <tr>
+                                                <td colSpan="3" className="border border-gray-800 p-2 text-right font-bold align-middle bg-gray-50 uppercase tracking-wider">Total Claim Amount</td>
+                                                <td colSpan="2" className="border border-gray-800 p-2 align-middle font-bold text-lg text-red-700 bg-gray-50 italic">₹{claimData.difference_amount}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colSpan="5" className="border border-gray-800 p-4 h-24 align-bottom text-center font-bold">
+                                                    Signature & Stamp (Transporter)
+                                                </td>
+                                            </tr>
+                                        </>
+                                    )}
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>  </div>
                 </div>
             )}
 

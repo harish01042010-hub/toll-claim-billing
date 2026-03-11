@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120">
+    <rect width="400" height="120" fill="#fff"/>
+    <path d="M20 70 L50 20 L250 20 L220 70 Z" fill="#f58220"/>
+    <text x="60" y="55" font-family="Arial" font-size="36" font-weight="bold" font-style="italic" fill="#fff">FASTag</text>
+    <text x="30" y="100" font-family="Arial" font-size="28" font-weight="bold" fill="#00569c">NETC</text>
+    <path d="M120 100 L180 80 L180 100 Z" fill="#00a030"/>
+</svg>
