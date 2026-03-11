@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Truck } from 'lucide-react';
 
-const API = "https://toll-claim-billing.onrender.com/api/auth/login";
+const API = "https://toll-claim-billing.onrender.com";
 
 const Login = ({ onLogin }) => {
     const [username, setUsername] = useState('admin');
