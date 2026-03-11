@@ -55,6 +55,17 @@ CREATE TABLE IF NOT EXISTS toll_rates (
     UNIQUE KEY route_plaza (route_id, toll_plaza_id)
 );
 
+CREATE TABLE IF NOT EXISTS fastag_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    original_filename VARCHAR(255) NOT NULL,
+    saved_filename VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50),
+    vehicle_number VARCHAR(50),
+    record_count INT DEFAULT 0,
+    file_data LONGBLOB NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS fastag_transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     transaction_id VARCHAR(100) UNIQUE,
@@ -62,7 +73,9 @@ CREATE TABLE IF NOT EXISTS fastag_transactions (
     vehicle_number VARCHAR(50) NOT NULL,
     toll_plaza_name VARCHAR(255) NOT NULL,
     paid_amount DECIMAL(10, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    report_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (report_id) REFERENCES fastag_reports(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS claim_bills (

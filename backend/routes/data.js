@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const auth = require('../middleware/auth');
+
+router.use(auth); // Protect all routes here
 const multer = require('multer');
 const xlsx = require('xlsx');
 const pdfParse = require('pdf-parse');
@@ -164,16 +167,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
             res.json({ message: 'File uploaded and saved successfully', extractedRecords: extractedRows.length, reportId });
         } catch (insertError) {
             await connection.rollback();
-            // cleanup file on error
-            fs.unlinkSync(req.file.path);
+            // no file cleanup needed for memoryStorage
             throw insertError;
         } finally {
             connection.release();
         }
     } catch (err) {
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
         res.status(500).json({ error: err.message });
     }
 });

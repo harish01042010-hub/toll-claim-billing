@@ -4,7 +4,7 @@ import { Search, Printer, Download, Save, Files } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
-const API = "https://toll-claim-billing.onrender.com";
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Claims = () => {
     const [vehicles, setVehicles] = useState([]);

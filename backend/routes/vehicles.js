@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const auth = require('../middleware/auth');
 
-router.get('/', async (req, res) => {
+router.use(auth); // Protect all routes in this file
     try {
         const [rows] = await db.query(`
             SELECT v.*, t.name as transporter_name 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Route as RouteIcon, Truck, UploadCloud, FileText, LogOut, Menu } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
@@ -61,16 +62,21 @@ function App() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) setIsAuthenticated(true);
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setIsAuthenticated(true);
+    }
   }, []);
 
   const handleLogin = (token) => {
     localStorage.setItem('token', token);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
     setIsAuthenticated(false);
   };
 

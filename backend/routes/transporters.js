@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const auth = require('../middleware/auth');
+
+router.use(auth); // Protect all routes here
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const upload = multer({ dest: 'uploads/' });
@@ -65,6 +68,9 @@ router.post('/parse-pdf', upload.single('file'), async (req, res) => {
             name, address, gstin, pan_number, vendor_code, phone, plant_manager_address
         });
     } catch (err) {
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
         console.error(err);
         res.status(500).json({ error: err.message });
     }

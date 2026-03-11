@@ -12,10 +12,10 @@ const allowedOrigins = [
   "http://localhost:3000"
 ];
 
-// 1. Standard CORS Middleware
+// 1. Unified CORS Setup
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS policy violation'));
@@ -26,19 +26,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// 2. Manual Preflight & Header Overrides (The "Fix")
+// Quick handle for preflight OPTIONS to avoid reaching routes unnecessarily
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-  // If the browser is just "checking" permissions (OPTIONS), say YES immediately
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(204).end(); // 204 No Content is better for OPTIONS
   }
   next();
 });
