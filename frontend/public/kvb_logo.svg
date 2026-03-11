@@ -1,7 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120">
-    <rect width="400" height="120" fill="#fff"/>
-    <rect x="20" y="20" width="80" height="80" rx="40" fill="#00a030"/>
-    <text x="35" y="65" font-family="Arial" font-size="24" font-weight="bold" fill="#fff">KVB</text>
-    <text x="120" y="55" font-family="Arial" font-size="24" font-weight="bold" fill="#00a030">Karur Vysya Bank</text>
-    <text x="120" y="75" font-family="Arial" font-size="14" font-style="italic" fill="#00a030">Smart way to bank</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" preserveAspectRatio="xMidYMid meet">
+    <rect x="20" y="20" width="360" height="35" fill="#e5ce1e"/>
+    <rect x="20" y="55" width="360" height="25" fill="#088147"/>
+    <circle cx="75" cy="55" r="32" fill="#e5ce1e" stroke="#088147" stroke-width="4"/>
+    <path d="M 48 40 A 28 28 0 0 0 102 70" fill="none" stroke="#000" stroke-width="1.5"/>
+    <text x="75" y="62" font-family="Georgia, serif" font-size="24" font-weight="bold" fill="#000" text-anchor="middle">KVB</text>
+    <text x="130" y="46" font-family="Arial" font-size="30" font-weight="900" fill="#0f0b4a">Karur Vysya Bank</text>
+    <text x="130" y="72" font-family="Georgia, serif" font-size="16" font-style="italic" fill="#fff">Smart way to bank</text>
 </svg>

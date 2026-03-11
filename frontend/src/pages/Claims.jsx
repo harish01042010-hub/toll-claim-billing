@@ -232,12 +232,12 @@ const Claims = () => {
                     </div>
 
                     <div className="p-8 pb-0 flex justify-between items-center bg-white border-b border-gray-100">
-                        <img src="/kvb_logo.svg" alt="KVB" className="h-10 object-contain" />
+                        <img src="/kvb_logo.svg" alt="KVB" className="h-16 object-contain" />
                         <div className="text-center font-bold">
                             <h2 className="text-lg tracking-wider">KVB FASTAG</h2>
                             <h3 className="text-md">TRANSACTION SUMMARY REPORT</h3>
                         </div>
-                        <img src="/netc_fastag_logos.svg" alt="NETC Fastag" className="h-10 object-contain" />
+                        <img src="/netc_fastag_logos.svg" alt="NETC Fastag" className="h-14 object-contain" />
                     </div>
 
                     <div className="px-8 py-4 flex justify-between items-end border-b border-gray-800">

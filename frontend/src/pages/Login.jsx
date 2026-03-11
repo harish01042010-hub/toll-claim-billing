@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Truck } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = import.meta.env.VITE_API_URL || "https://toll-claim-billing.onrender.com";
+
 
 const Login = ({ onLogin }) => {
     const [username, setUsername] = useState('admin');

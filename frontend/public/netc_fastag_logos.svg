@@ -1,7 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120">
-    <rect width="400" height="120" fill="#fff"/>
-    <path d="M20 70 L50 20 L250 20 L220 70 Z" fill="#f58220"/>
-    <text x="60" y="55" font-family="Arial" font-size="36" font-weight="bold" font-style="italic" fill="#fff">FASTag</text>
-    <text x="30" y="100" font-family="Arial" font-size="28" font-weight="bold" fill="#00569c">NETC</text>
-    <path d="M120 100 L180 80 L180 100 Z" fill="#00a030"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 100" preserveAspectRatio="xMidYMid meet">
+    <text x="20" y="50" font-family="Arial" font-size="42" font-weight="bold" font-style="italic" fill="#58595b">NETC</text>
+    <polygon points="126,30 142,46 126,62" fill="#f58220"/>
+    <polygon points="136,30 152,46 136,62" fill="#00a651"/>
+    <line x1="160" y1="25" x2="160" y2="65" stroke="#b5b5b5" stroke-width="2"/>
+    <text x="20" y="65" font-family="Arial" font-size="7.5" font-weight="bold" fill="#808285" textLength="130">NATIONAL ELECTRONIC TOLL COLLECTION</text>
+    <text x="175" y="50" font-family="Arial" font-size="42" font-weight="bold" font-style="italic" fill="#f58220">FAST</text>
+    <text x="285" y="50" font-family="Arial" font-size="42" font-weight="bold" font-style="italic" fill="#00a651">ag</text>
+    <rect x="175" y="60" width="150" height="6" fill="#00a651"/>
+    <polygon points="175,63 185,55 185,71" fill="#00a651"/>
+    <polygon points="325,63 315,55 315,71" fill="#f58220"/>
+    <path d="M 305 25 A 20 20 0 0 1 325 25" fill="none" stroke="#f58220" stroke-width="2.5"/>
+    <path d="M 310 30 A 10 10 0 0 1 320 30" fill="none" stroke="#f58220" stroke-width="2.5"/>
+    <circle cx="315" cy="35" r="3" fill="#f58220"/>
+    <text x="175" y="75" font-family="Arial" font-size="8.5" font-weight="bold" font-style="italic" fill="#808285">Easy to Cruise</text>
 </svg>
