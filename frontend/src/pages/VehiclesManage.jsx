@@ -170,7 +170,7 @@ const VehiclesManage = () => {
 
     const deleteVehicle = async (id) => {
         if (window.confirm('Delete this vehicle?')) {
-            await axios.delete(`http://localhost:5000/api/vehicles/${id}`);
+            await axios.delete(`${API}/api/vehicles/${id}`);
             fetchData();
         }
     };

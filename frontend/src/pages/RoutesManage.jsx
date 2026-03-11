@@ -98,7 +98,7 @@ const RoutesManage = () => {
     const handleDownloadPdf = async (routeSummary) => {
         try {
             // First fetch the full details including toll plazas
-            const { data: route } = await axios.get(`http://localhost:5000/api/routes/${routeSummary.id}`);
+            const { data: route } = await axios.get(`${API}/api/routes/${routeSummary.id}`);
 
             const doc = new jsPDF();
 
@@ -187,7 +187,7 @@ const RoutesManage = () => {
             for (let i = 0; i < routes.length; i++) {
                 if (i > 0) doc.addPage();
 
-                const { data: route } = await axios.get(`http://localhost:5000/api/routes/${routes[i].id}`);
+                const { data: route } = await axios.get(`${API}/api/routes/${routes[i].id}`);
 
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
@@ -266,7 +266,7 @@ const RoutesManage = () => {
 
     const deleteRoute = async (id) => {
         if (window.confirm('Delete this route?')) {
-            await axios.delete(`http://localhost:5000/api/routes/${id}`);
+            await axios.delete(`${API}/api/routes/${id}`);
             fetchData();
         }
     };

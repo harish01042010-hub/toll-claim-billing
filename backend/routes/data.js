@@ -124,10 +124,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
                 `INSERT INTO fastag_reports (original_filename, saved_filename, file_type, vehicle_number, record_count, file_data) 
                  VALUES (?, ?, ?, ?, ?, ?)`,
                 [
-                    req.file.originalname, 
-                    saved_filename, 
-                    req.file.originalname.split('.').pop().toLowerCase(), 
-                    primaryVehicle, 
+                    req.file.originalname,
+                    saved_filename,
+                    req.file.originalname.split('.').pop().toLowerCase(),
+                    primaryVehicle,
                     extractedRows.length,
                     req.file.buffer
                 ]
@@ -193,18 +193,18 @@ router.get('/download-report/:id', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT original_filename, file_data FROM fastag_reports WHERE id = ?', [req.params.id]);
         if (rows.length === 0) return res.status(404).json({ error: 'Report not found' });
-        
+
         const report = rows[0];
-        
+
         if (report.file_data) {
             res.setHeader('Content-Disposition', `attachment; filename="${report.original_filename}"`);
-            
+
             // Set basic content types based on original extension
             const ext = report.original_filename.split('.').pop().toLowerCase();
             if (ext === 'pdf') res.setHeader('Content-Type', 'application/pdf');
             else if (ext === 'xlsx') res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             else if (ext === 'csv') res.setHeader('Content-Type', 'text/csv');
-            
+
             res.send(report.file_data);
         } else {
             // Fallback to file system if it was uploaded before the BLOB change

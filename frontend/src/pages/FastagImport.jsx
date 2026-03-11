@@ -131,8 +131,8 @@ const FastagImport = () => {
                                         <td className="border border-gray-800 p-3 font-bold uppercase">{r.vehicle_number || '-'}</td>
                                         <td className="border border-gray-800 p-3 text-blue-600 font-bold">{r.record_count}</td>
                                         <td className="border border-gray-800 p-3">
-                                            <a 
-                                                href={`\${API}/api/data/download-report/${r.id}`} 
+                                            <a
+                                                href={`${API}/api/data/download-report/${r.id}`}
                                                 className="text-primary-600 hover:text-primary-800 font-medium underline"
                                                 target="_blank"
                                                 rel="noreferrer"
